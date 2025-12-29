@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class RegisterRequest extends FormRequest
 {
@@ -37,5 +39,13 @@ class RegisterRequest extends FormRequest
             'password.min' => 'Пароль должен быть минимум :min символов.',
             'password.confirmed' => 'Пароли не совпадают.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => 'Validation error',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }
