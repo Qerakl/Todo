@@ -26,7 +26,6 @@ class TaskController extends Controller
             ->latest()
             ->paginate(min(max((int)$request->query('per_page', 20), 1), 100));
 
-        // Превратим коллекцию задач в нужный формат
         $tasks->getCollection()->transform(fn (Task $t) => $this->payload($t));
 
         return response()->json($tasks);
@@ -43,7 +42,7 @@ class TaskController extends Controller
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'status' => $data['status'] ?? TaskStatus::New->value,
-        ])->load('user:id,name,email'); // N+1 нет
+        ])->load('user:id,name,email');
 
         return response()->json($this->payload($task), 201);
     }
