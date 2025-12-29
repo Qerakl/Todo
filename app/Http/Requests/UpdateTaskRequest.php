@@ -2,27 +2,37 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\TaskStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateTaskRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:20000'],
+            'status' => ['sometimes', 'nullable', Rule::in(array_map(fn($c) => $c->value, TaskStatus::cases()))],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'Введите название задачи.',
+            'title.string' => 'Название задачи должно быть строкой.',
+            'title.max' => 'Название задачи не должно быть длиннее :max символов.',
+
+            'description.string' => 'Описание должно быть строкой.',
+            'description.max' => 'Описание не должно быть длиннее :max символов.',
+
+            'status.in' => 'Некорректный статус задачи.',
         ];
     }
 }
