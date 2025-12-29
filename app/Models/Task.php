@@ -13,6 +13,7 @@ class Task extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'title',
         'description',
         'status',
