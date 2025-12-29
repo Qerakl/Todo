@@ -2,66 +2,94 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\TaskStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Models\Task;
+use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct()
     {
-        //
+        $this->authorizeResource(Task::class, 'task');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(Request $request)
     {
-        //
+        $this->authorize('viewAny', Task::class);
+
+        $tasks = Task::query()
+            ->where('user_id', $request->user()->id)
+            ->with(['user:id,name,email'])
+            ->latest()
+            ->paginate(min(max((int)$request->query('per_page', 20), 1), 100));
+
+        // Превратим коллекцию задач в нужный формат
+        $tasks->getCollection()->transform(fn (Task $t) => $this->payload($t));
+
+        return response()->json($tasks);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreTaskRequest $request)
     {
-        //
+        $this->authorize('create', Task::class);
+
+        $data = $request->validated();
+
+        $task = Task::create([
+            'user_id' => $request->user()->id,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'status' => $data['status'] ?? TaskStatus::New->value,
+        ])->load('user:id,name,email'); // N+1 нет
+
+        return response()->json($this->payload($task), 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Task $task)
     {
-        //
+        $task->load('user:id,name,email');
+        return response()->json($this->payload($task));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Task $task)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(UpdateTaskRequest $request, Task $task)
     {
-        //
+        $data = $request->validated();
+
+        unset($data['user_id']);
+
+        $task->fill($data)->save();
+        $task->load('user:id,name,email');
+
+        return response()->json($this->payload($task));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Task $task)
     {
-        //
+        $task->delete();
+        return response()->json(['message' => 'Deleted']);
+    }
+
+    private function payload(Task $task): array
+    {
+        $status = $task->status instanceof \BackedEnum ? $task->status->value : (string)$task->status;
+
+        return [
+            'id' => $task->id,
+            'title' => $task->title,
+            'description' => $task->description,
+            'status' => $status,
+            'user' => $task->relationLoaded('user') && $task->user
+                ? [
+                    'id' => $task->user->id,
+                    'name' => $task->user->name,
+                    'email' => $task->user->email,
+                ]
+                : null,
+            'created_at' => $task->created_at,
+            'updated_at' => $task->updated_at,
+        ];
     }
 }
